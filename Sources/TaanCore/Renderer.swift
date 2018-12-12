@@ -55,6 +55,13 @@ public class Renderer {
         return config.source.appending("/\(dirName)")
     }
 
+    public func postPaths() throws -> [URL] {
+        let blogURL = URL(fileURLWithPath: contentDir).appendingPathComponent("blog", isDirectory: true)
+        return try FileManager.default
+            .contentsOfDirectory(at: blogURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles)
+            .filter { $0.pathExtension == "md" }
+    }
+
     public func pagePaths() throws -> [URL] {
         return try FileManager.default
             .contentsOfDirectory(atPath: contentDir)
@@ -72,6 +79,7 @@ public class Renderer {
     public func render() throws {
         try copyStatic()
         try renderPages()
+        try renderPosts()
     }
 
     private func copyStatic() throws {
@@ -86,19 +94,41 @@ public class Renderer {
         }
     }
 
+    private func renderPosts() throws {
+        let pageTemplate = templatePath(named: "post")
+        let pageNames = try self.pageNames()
+        for pageURL in try postPaths() {
+            let pageFileContent = try String(contentsOf: pageURL)
+            let (frontMatter, body) = try PostFrontMatter.readFrontMatter(fileContent: pageFileContent)
+            let context = PostContext(
+                title: frontMatter.title,
+                date: frontMatter.dateString,
+                body: body,
+                pageNames: pageNames
+            )
+            let renderResult = try templateRenderer
+                .render(pageTemplate, context)
+                .wait()
+            let pageFileName = pageURL
+                .deletingPathExtension()
+                .appendingPathExtension("html").lastPathComponent
+                .split(separator: " ")
+                .joined(separator: "-")
+
+            let htmlPath = outputDir.appending("/\(pageFileName)")
+            let outputFile = URL(fileURLWithPath: htmlPath, isDirectory: false)
+            try renderResult.data.write(to: outputFile)
+        }
+    }
+
     /// Render each Page (top-level files in Content) using the "page.leaf" template
     private func renderPages() throws {
-        struct PageContext: Codable {
-            let body: String
-            let pages: [String]
-        }
-
         let pageTemplate = templatePath(named: "page")
         let pageNames = try self.pageNames()
         for pageURL in try pagePaths() {
-            let markdownHTML = try (try String(contentsOf: pageURL)).toHTML()
+            let pageFileContent = try String(contentsOf: pageURL)
             let renderResult = try templateRenderer
-                .render(pageTemplate, PageContext(body: markdownHTML, pages: pageNames))
+                .render(pageTemplate, PageContext(pageFileContent: pageFileContent, pageNames: pageNames))
                 .wait()
             let pageFileName = pageURL
                 .deletingPathExtension()

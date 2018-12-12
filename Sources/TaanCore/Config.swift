@@ -10,6 +10,8 @@ import Utility
 
 enum AppError: Error {
     case noAction
+
+    case incompletePostFrontMatter
 }
 
 struct BuildConfig {
