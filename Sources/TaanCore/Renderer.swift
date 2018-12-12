@@ -109,12 +109,7 @@ public class Renderer {
             let renderResult = try templateRenderer
                 .render(pageTemplate, context)
                 .wait()
-            let pageFileName = pageURL
-                .deletingPathExtension()
-                .appendingPathExtension("html").lastPathComponent
-                .split(separator: " ")
-                .joined(separator: "-")
-
+            let pageFileName = pageURL.htmlFileName
             let htmlPath = outputDir.appending("/\(pageFileName)")
             let outputFile = URL(fileURLWithPath: htmlPath, isDirectory: false)
             try renderResult.data.write(to: outputFile)
@@ -130,12 +125,19 @@ public class Renderer {
             let renderResult = try templateRenderer
                 .render(pageTemplate, PageContext(pageFileContent: pageFileContent, pageNames: pageNames))
                 .wait()
-            let pageFileName = pageURL
-                .deletingPathExtension()
-                .appendingPathExtension("html").lastPathComponent
+            let pageFileName = pageURL.htmlFileName
             let htmlPath = outputDir.appending("/\(pageFileName)")
             let outputFile = URL(fileURLWithPath: htmlPath, isDirectory: false)
             try renderResult.data.write(to: outputFile)
         }
+    }
+}
+
+extension URL {
+    var htmlFileName: String {
+        return deletingPathExtension()
+            .appendingPathExtension("html").lastPathComponent
+            .split(separator: " ")
+            .joined(separator: "-")
     }
 }
