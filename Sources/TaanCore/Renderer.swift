@@ -22,17 +22,28 @@ public class Renderer {
         try setup()
     }
 
+    /// Sets up the renderer
     private func setup() throws {
-        let doesNotExist = !FileManager.default.fileExists(atPath: outputDir)
-        guard doesNotExist else { return }
-        try FileManager.default.createDirectory(
-            at: URL(fileURLWithPath: outputDir, isDirectory: true),
-            withIntermediateDirectories: false, attributes: nil
-        )
+        if !FileManager.default.fileExists(atPath: outputDir) {
+            try FileManager.default.createDirectory(
+                at: URL(fileURLWithPath: outputDir, isDirectory: true),
+                withIntermediateDirectories: false, attributes: nil
+            )
+        }
+        if !FileManager.default.fileExists(atPath: outputBlogDir) {
+            try FileManager.default.createDirectory(
+                at: URL(fileURLWithPath: outputBlogDir, isDirectory: true),
+                withIntermediateDirectories: false, attributes: nil
+            )
+        }
     }
 
     private var outputDir: String {
         return config.output
+    }
+
+    private var outputBlogDir: String {
+        return outputDir.appending("/blog")
     }
 
     private var contentDir: String {
@@ -41,6 +52,10 @@ public class Renderer {
 
     private var viewsDir: String {
         return topLevelDir(named: "Views")
+    }
+
+    private var blogURL: URL {
+        return URL(fileURLWithPath: contentDir).appendingPathComponent("blog", isDirectory: true)
     }
 
     private func templatePath(named name: String) -> String {
@@ -56,7 +71,6 @@ public class Renderer {
     }
 
     public func postPaths() throws -> [URL] {
-        let blogURL = URL(fileURLWithPath: contentDir).appendingPathComponent("blog", isDirectory: true)
         return try FileManager.default
             .contentsOfDirectory(at: blogURL, includingPropertiesForKeys: nil, options: .skipsHiddenFiles)
             .filter { $0.pathExtension == "md" }
@@ -80,6 +94,7 @@ public class Renderer {
         try copyStatic()
         try renderPages()
         try renderPosts()
+        try renderBlogIndex()
     }
 
     private func copyStatic() throws {
@@ -110,7 +125,7 @@ public class Renderer {
                 .render(pageTemplate, context)
                 .wait()
             let pageFileName = pageURL.htmlFileName
-            let htmlPath = outputDir.appending("/\(pageFileName)")
+            let htmlPath = outputBlogDir.appending("/\(pageFileName)")
             let outputFile = URL(fileURLWithPath: htmlPath, isDirectory: false)
             try renderResult.data.write(to: outputFile)
         }
@@ -130,6 +145,35 @@ public class Renderer {
             let outputFile = URL(fileURLWithPath: htmlPath, isDirectory: false)
             try renderResult.data.write(to: outputFile)
         }
+    }
+
+    private func renderBlogIndex() throws {
+        struct BlogPageContext: Codable {
+            let title: String
+            let path: String
+            let date: String
+        }
+        struct BlogContext: Codable {
+            let title: String
+            let posts: [BlogPageContext]
+            let pageNames: [String]
+        }
+
+        let indexTemplate = templatePath(named: "blog")
+        let posts = try postPaths().map { pageURL -> BlogPageContext in
+            let pageFileContent = try String(contentsOf: pageURL)
+            let (frontMatter, _) = try PostFrontMatter.readFrontMatter(fileContent: pageFileContent)
+            let pageFileName = pageURL.htmlFileName
+            return BlogPageContext(title: frontMatter.title, path: "/blog/\(pageFileName)", date: frontMatter.dateString)
+        }
+
+        let context = BlogContext(title: "Sakun Labs - Blog", posts: posts, pageNames: try pageNames())
+        let renderResult = try templateRenderer
+            .render(indexTemplate, context)
+            .wait()
+        let htmlPath = outputBlogDir.appending("/index.html")
+        let outputFile = URL(fileURLWithPath: htmlPath, isDirectory: false)
+        try renderResult.data.write(to: outputFile)
     }
 }
 
