@@ -6,6 +6,11 @@ import Leaf
 typealias Path = String
 
 public class Renderer {
+    struct BaseContext: Codable {
+        let pageNames: [String]
+        let siteTitle: String
+    }
+
     private let templateRenderer: LeafRenderer
     private let config: BuildConfig
 
@@ -18,18 +23,24 @@ public class Renderer {
         let leafConfig = LeafConfig(tags: tagsConfig, viewsDir: viewsDir, shouldCache: false)
         self.templateRenderer = LeafRenderer(config: leafConfig, using: container)
         self.config = config
+    }
 
-        try setup()
+    private func baseContext() throws -> BaseContext {
+        return BaseContext(
+            pageNames: try pageNames(),
+            siteTitle: config.siteSettings.title
+        )
     }
 
     /// Sets up the renderer
     private func setup() throws {
-        if !FileManager.default.fileExists(atPath: outputDir) {
-            try FileManager.default.createDirectory(
-                at: URL(fileURLWithPath: outputDir, isDirectory: true),
-                withIntermediateDirectories: false, attributes: nil
-            )
+        if FileManager.default.fileExists(atPath: outputDir) {
+            try FileManager.default.removeItem(atPath: outputDir)
         }
+        try FileManager.default.createDirectory(
+            at: URL(fileURLWithPath: outputDir, isDirectory: true),
+            withIntermediateDirectories: false, attributes: nil
+        )
         if !FileManager.default.fileExists(atPath: outputBlogDir) {
             try FileManager.default.createDirectory(
                 at: URL(fileURLWithPath: outputBlogDir, isDirectory: true),
@@ -87,14 +98,17 @@ public class Renderer {
         return try pagePaths()
             .map { $0.deletingPathExtension().lastPathComponent }
             .filter { $0 != "index" }
+            + ["blog"]
     }
 
 
     public func render() throws {
+        try setup()
         try copyStatic()
         try renderPages()
         try renderPosts()
         try renderBlogIndex()
+        print("All done!")
     }
 
     private func copyStatic() throws {
@@ -167,7 +181,8 @@ public class Renderer {
             return BlogPageContext(title: frontMatter.title, path: "/blog/\(pageFileName)", date: frontMatter.dateString)
         }
 
-        let context = BlogContext(title: "Sakun Labs - Blog", posts: posts, pageNames: try pageNames())
+        let blogTitle = config.siteSettings.blogTitle
+        let context = BlogContext(title: blogTitle, posts: posts, pageNames: try pageNames())
         let renderResult = try templateRenderer
             .render(indexTemplate, context)
             .wait()

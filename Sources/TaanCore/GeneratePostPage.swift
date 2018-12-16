@@ -102,14 +102,11 @@ extension String {
     func suffix(after prefix: String) throws -> String? {
         let titleExpression = try NSRegularExpression(pattern: "^\(prefix)(.*)", options: [])
         let matches = titleExpression.matches(in: String(self), options: [], range: NSRange(location: 0, length: self.count))
-        print(matches)
         guard
             let offset = matches.first?.range(at: 1),
             let range = Range<String.Index>(offset, in: self)
         else { return nil }
         let result = self[range]
-//        let suffixIndex = self.index(startIndex, offsetBy: offset)
-//        let result = self[suffixIndex...]
         return String(result)
     }
 }

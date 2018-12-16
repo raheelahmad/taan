@@ -14,9 +14,30 @@ enum AppError: Error {
     case incompletePostFrontMatter
 }
 
+struct SiteSettings: Codable {
+    let title: String
+    let blogTitle: String
+
+    enum CodingKeys: String, CodingKey {
+        case title
+        case blogTitle = "blog_title"
+    }
+}
+
 struct BuildConfig {
     let source: Path
     let output: Path
+    let siteSettings: SiteSettings
+
+    init(source: Path, output: Path) throws {
+        let settingsFileURL = URL(fileURLWithPath: source).appendingPathComponent("config.json")
+        let settingsData = try Data(contentsOf: settingsFileURL)
+        let settings = try JSONDecoder().decode(SiteSettings.self, from: settingsData)
+
+        self.source = source
+        self.output = output
+        self.siteSettings = settings
+    }
 }
 
 struct PostConfig {
@@ -64,7 +85,7 @@ public struct Config {
 
         switch action {
         case .build:
-            let config = BuildConfig(source: sourceDirPath, output: outputDirPath)
+            let config = try BuildConfig(source: sourceDirPath, output: outputDirPath)
             self.action = PerformAction.build(config)
         case .post:
             let postName = result.get(name)

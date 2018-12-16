@@ -7,6 +7,8 @@
 
 import Foundation
 
+import Dispatch
+
 public final class App {
     init() { }
     
@@ -16,6 +18,18 @@ public final class App {
         case .build(let config):
             let renderer = try Renderer(config: config)
             try renderer.render()
+            let fm = FileManager.default
+
+            let exists = fm.fileExists(atPath: config.source)
+            guard exists else { return }
+            do {
+                try Watcher.watch(path: config.source, isRoot: true) {
+                    try renderer.render()
+                }
+            } catch {
+                print(error)
+            }
+            RunLoop.main.run()
         case .post(let config):
             try GeneratePostPage.generate(config: config)
         }
