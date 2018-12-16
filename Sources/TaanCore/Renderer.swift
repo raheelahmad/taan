@@ -103,12 +103,15 @@ public class Renderer {
 
 
     public func render() throws {
+        let start = Date()
         try setup()
         try copyStatic()
         try renderPages()
         try renderPosts()
         try renderBlogIndex()
-        print("All done!")
+        let end = Date()
+        let interval = end.timeIntervalSince(start) * 1000
+        print("rendered in \(Int(interval)) ms.")
     }
 
     private func copyStatic() throws {

@@ -9,6 +9,7 @@ import Foundation
 import Dispatch
 
 final class Watcher {
+    private static let ignoredDirNames = ["node_modules"]
 
     static var sources: [Path: DispatchSourceFileSystemObject] = [:]
 
@@ -19,8 +20,12 @@ final class Watcher {
             self.root = path
             sources.removeAll()
         }
+        let pathURL = URL(fileURLWithPath: path)
+        guard !ignoredDirNames.contains(pathURL.lastPathComponent) else {
+            return
+        }
         let fm = FileManager.default
-        if sources[path] == nil {
+        if sources[path] == nil  {
             let sourceDirDescrptr = open(path, O_EVTONLY)
             guard sourceDirDescrptr != -1 else { return }
             let eventSource = DispatchSource.makeFileSystemObjectSource(fileDescriptor: sourceDirDescrptr, eventMask: DispatchSource.FileSystemEvent.write, queue: nil)
@@ -30,17 +35,15 @@ final class Watcher {
                     if let root = root {
                         try watch(path: root, isRoot: true, action: action)
                     }
-                } catch {
-                    print(error)
-                }
+                } catch { print(error) }
             }
             eventSource.resume()
             sources[path] = eventSource
-            print("registered for \(path)")
+//            print("registered for \(path)")
         }
 
-        let res = try URL(fileURLWithPath: path).resourceValues(forKeys: [URLResourceKey.isDirectoryKey])
-        if !(res.isDirectory == true) {
+        let res = try pathURL.resourceValues(forKeys: [URLResourceKey.isDirectoryKey])
+        guard (res.isDirectory == true) else {
             return
         }
 

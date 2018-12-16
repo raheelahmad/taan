@@ -29,6 +29,7 @@ public final class App {
             } catch {
                 print(error)
             }
+            print("Watching for changes in \(config.source)")
             RunLoop.main.run()
         case .post(let config):
             try GeneratePostPage.generate(config: config)
