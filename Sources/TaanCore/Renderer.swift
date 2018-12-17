@@ -142,7 +142,7 @@ public class Renderer {
         for pageURL in try postPaths() {
             let pageFileContent = try String(contentsOf: pageURL)
             let (frontMatter, body) = try PostFrontMatter.readFrontMatter(fileContent: pageFileContent)
-            let context = PostContext(
+            let context = try PostContext(
                 title: frontMatter.title,
                 date: frontMatter.dateString,
                 body: body,

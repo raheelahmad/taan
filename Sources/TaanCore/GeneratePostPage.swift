@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Down
 
 struct PostContext: Codable {
     let title: String
@@ -13,10 +14,11 @@ struct PostContext: Codable {
     let body: String
     let pages: [Page]
 
-    init(title: String, date: String, body: String, pages: [Page]) {
+    init(title: String, date: String, body: String, pages: [Page]) throws {
         self.title = title
         self.date = date
-        self.body = body
+        let markdownHTML = try body.toHTML()
+        self.body = markdownHTML
         self.pages = pages
     }
 }
@@ -30,10 +32,16 @@ struct PostFrontMatter: Codable {
     let date: Date
 
     var dateString: String {
-        return PostFrontMatter.formatter.string(from: date)
+        return PostFrontMatter.displayFormatter.string(from: date)
     }
 
-    static var formatter: DateFormatter {
+    static var displayFormatter: DateFormatter {
+        let fm = DateFormatter()
+        fm.dateFormat = "MMM d, yyyy"
+        return fm
+    }
+
+    static var readFormatter: DateFormatter {
         let fm = DateFormatter()
         fm.dateStyle = .short
         fm.timeStyle = .none
@@ -45,7 +53,7 @@ struct PostFrontMatter: Codable {
         return [
             separator,
             "\(Keys.titlePrefix)\(title)",
-            "\(Keys.dateSuffix)\(PostFrontMatter.formatter.string(from: date))",
+            "\(Keys.dateSuffix)\(PostFrontMatter.readFormatter.string(from: date))",
             separator
         ].joined(separator: "\n")
     }
@@ -72,7 +80,7 @@ struct PostFrontMatter: Codable {
             }
             if line.starts(with: Keys.dateSuffix) {
                 date = try line.suffix(after: Keys.dateSuffix)
-                    .flatMap { formatter.date(from: $0) }
+                    .flatMap { readFormatter.date(from: $0) }
             }
         }
         throw AppError.incompletePostFrontMatter
