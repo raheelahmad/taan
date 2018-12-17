@@ -10,11 +10,11 @@ import Down
 
 struct PageContext: Codable {
     let body: String
-    let pageNames: [String]
+    let pages: [Page]
 
-    init(pageFileContent: String, pageNames: [String]) throws {
+    init(pageFileContent: String, pages: [Page]) throws {
         let markdownHTML = try pageFileContent.toHTML()
         self.body = markdownHTML
-        self.pageNames = pageNames
+        self.pages = pages
     }
 }

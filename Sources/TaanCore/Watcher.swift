@@ -15,10 +15,14 @@ final class Watcher {
 
     private static var root: Path?
 
+    private static var watchCount = 0
+
     static func watch(path: Path, isRoot: Bool = false, action: @escaping (() throws -> ())) throws {
         if isRoot {
             self.root = path
             sources.removeAll()
+            watchCount += 1
+            print("Watch count: \(watchCount)")
         }
         let pathURL = URL(fileURLWithPath: path)
         guard !ignoredDirNames.contains(pathURL.lastPathComponent) else {
@@ -31,11 +35,14 @@ final class Watcher {
             let eventSource = DispatchSource.makeFileSystemObjectSource(fileDescriptor: sourceDirDescrptr, eventMask: DispatchSource.FileSystemEvent.write, queue: nil)
             eventSource.setEventHandler {
                 do {
+                    print("Changed: \(pathURL.lastPathComponent)")
                     try action()
                     if let root = root {
                         try watch(path: root, isRoot: true, action: action)
                     }
-                } catch { print(error) }
+                } catch {
+                    print(error)
+                }
             }
             eventSource.resume()
             sources[path] = eventSource

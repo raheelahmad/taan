@@ -11,13 +11,13 @@ struct PostContext: Codable {
     let title: String
     let date: String
     let body: String
-    let pageNames: [String]
+    let pages: [Page]
 
-    init(title: String, date: String, body: String, pageNames: [String]) {
+    init(title: String, date: String, body: String, pages: [Page]) {
         self.title = title
         self.date = date
         self.body = body
-        self.pageNames = pageNames
+        self.pages = pages
     }
 }
 

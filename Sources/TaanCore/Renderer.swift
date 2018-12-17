@@ -5,6 +5,11 @@ import Leaf
 
 typealias Path = String
 
+struct Page: Codable {
+    let name: String
+    let isActive: String
+}
+
 public class Renderer {
     struct BaseContext: Codable {
         let pageNames: [String]
@@ -95,10 +100,14 @@ public class Renderer {
     }
 
     public func pageNames() throws -> [String] {
-        return try pagePaths()
+        var allNames = try pagePaths()
             .map { $0.deletingPathExtension().lastPathComponent }
-            .filter { $0 != "index" }
             + ["blog"]
+        if let indexIndex = allNames.firstIndex(of: "index") {
+            allNames.remove(at: indexIndex)
+            allNames.insert("index", at: 0)
+        }
+        return allNames
     }
 
 
@@ -128,7 +137,8 @@ public class Renderer {
 
     private func renderPosts() throws {
         let pageTemplate = templatePath(named: "post")
-        let pageNames = try self.pageNames()
+        let pages = try self.pageNames()
+            .map { Page(name: $0, isActive: $0 == "blog" ? "is-active" : "") }
         for pageURL in try postPaths() {
             let pageFileContent = try String(contentsOf: pageURL)
             let (frontMatter, body) = try PostFrontMatter.readFrontMatter(fileContent: pageFileContent)
@@ -136,7 +146,7 @@ public class Renderer {
                 title: frontMatter.title,
                 date: frontMatter.dateString,
                 body: body,
-                pageNames: pageNames
+                pages: pages
             )
             let renderResult = try templateRenderer
                 .render(pageTemplate, context)
@@ -154,8 +164,10 @@ public class Renderer {
         let pageNames = try self.pageNames()
         for pageURL in try pagePaths() {
             let pageFileContent = try String(contentsOf: pageURL)
+            let pageName = pageURL.fileName
+            let pages = pageNames.map { Page(name: $0, isActive: $0 == pageName ? "is-active" : "" ) }
             let renderResult = try templateRenderer
-                .render(pageTemplate, PageContext(pageFileContent: pageFileContent, pageNames: pageNames))
+                .render(pageTemplate, PageContext(pageFileContent: pageFileContent, pages: pages))
                 .wait()
             let pageFileName = pageURL.htmlFileName
             let htmlPath = outputDir.appending("/\(pageFileName)")
@@ -173,7 +185,7 @@ public class Renderer {
         struct BlogContext: Codable {
             let title: String
             let posts: [BlogPageContext]
-            let pageNames: [String]
+            let pages: [Page]
         }
 
         let indexTemplate = templatePath(named: "blog")
@@ -185,7 +197,8 @@ public class Renderer {
         }
 
         let blogTitle = config.siteSettings.blogTitle
-        let context = BlogContext(title: blogTitle, posts: posts, pageNames: try pageNames())
+        let pages = try pageNames().map { Page(name: $0, isActive: $0 == "blog" ? "is-active" : "" )}
+        let context = BlogContext(title: blogTitle, posts: posts, pages: pages)
         let renderResult = try templateRenderer
             .render(indexTemplate, context)
             .wait()
@@ -196,6 +209,10 @@ public class Renderer {
 }
 
 extension URL {
+    var fileName: String {
+        return deletingPathExtension()
+            .lastPathComponent
+    }
     var htmlFileName: String {
         return deletingPathExtension()
             .appendingPathExtension("html").lastPathComponent
