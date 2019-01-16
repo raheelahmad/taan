@@ -7,7 +7,6 @@ typealias Path = String
 
 struct Page: Codable {
     let name: String
-    let isActive: String
 }
 
 public class Renderer {
@@ -138,10 +137,13 @@ public class Renderer {
     private func renderPosts() throws {
         let pageTemplate = templatePath(named: "post")
         let pages = try self.pageNames()
-            .map { Page(name: $0, isActive: $0 == "blog" ? "is-active" : "") }
+            .map { Page(name: $0) }
         for pageURL in try postPaths() {
             let pageFileContent = try String(contentsOf: pageURL)
             let (frontMatter, body) = try PostFrontMatter.readFrontMatter(fileContent: pageFileContent)
+            guard !frontMatter.draft else {
+                continue
+            }
             let context = try PostContext(
                 title: frontMatter.title,
                 date: frontMatter.dateString,
@@ -164,8 +166,7 @@ public class Renderer {
         let pageNames = try self.pageNames()
         for pageURL in try pagePaths() {
             let pageFileContent = try String(contentsOf: pageURL)
-            let pageName = pageURL.fileName
-            let pages = pageNames.map { Page(name: $0, isActive: $0 == pageName ? "is-active" : "" ) }
+            let pages = pageNames.map { Page(name: $0) }
             let renderResult = try templateRenderer
                 .render(pageTemplate, PageContext(pageFileContent: pageFileContent, pages: pages))
                 .wait()
@@ -189,15 +190,19 @@ public class Renderer {
         }
 
         let indexTemplate = templatePath(named: "blog")
-        let posts = try postPaths().map { pageURL -> BlogPageContext in
-            let pageFileContent = try String(contentsOf: pageURL)
-            let (frontMatter, _) = try PostFrontMatter.readFrontMatter(fileContent: pageFileContent)
-            let pageFileName = pageURL.htmlFileName
-            return BlogPageContext(title: frontMatter.title, path: "/blog/\(pageFileName)", date: frontMatter.dateString)
-        }
+        let posts = try postPaths()
+            .compactMap { pageURL -> BlogPageContext? in
+                let pageFileContent = try String(contentsOf: pageURL)
+                let (frontMatter, _) = try PostFrontMatter.readFrontMatter(fileContent: pageFileContent)
+                guard !frontMatter.draft else {
+                    return nil
+                }
+                let pageFileName = pageURL.htmlFileName
+                return BlogPageContext(title: frontMatter.title, path: "/blog/\(pageFileName)", date: frontMatter.dateString)
+            }
 
         let blogTitle = config.siteSettings.blogTitle
-        let pages = try pageNames().map { Page(name: $0, isActive: $0 == "blog" ? "is-active" : "" )}
+        let pages = try pageNames().map { Page(name: $0)}
         let context = BlogContext(title: blogTitle, posts: posts, pages: pages)
         let renderResult = try templateRenderer
             .render(indexTemplate, context)

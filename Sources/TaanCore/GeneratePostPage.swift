@@ -27,9 +27,11 @@ struct PostFrontMatter: Codable {
     struct Keys {
         static let titlePrefix = "Title: "
         static let dateSuffix = "Date: "
+        static let draftSuffix = "Draft: "
     }
     let title: String
     let date: Date
+    let draft: Bool
 
     var dateString: String {
         return PostFrontMatter.displayFormatter.string(from: date)
@@ -64,13 +66,12 @@ struct PostFrontMatter: Codable {
         var separatorsEncountered = 0
         var title: String?
         var date: Date?
+        var draft: Bool?
+        var lastIdx = 0
         for (idx, lineSubStr) in allLines.enumerated() {
             let line = String(lineSubStr)
+            lastIdx = idx
             guard separatorsEncountered < 2 else { break }
-            if let title = title, let date = date {
-                let body = allLines[(idx+1)...].joined(separator: "\n")
-                return (frontMatter: PostFrontMatter(title: title, date: date), body: body)
-            }
             if line == separator {
                 separatorsEncountered += 1
                 continue
@@ -82,7 +83,17 @@ struct PostFrontMatter: Codable {
                 date = try line.suffix(after: Keys.dateSuffix)
                     .flatMap { readFormatter.date(from: $0) }
             }
+            if line.starts(with: Keys.draftSuffix) {
+                draft = try line.suffix(after: Keys.draftSuffix)
+                    .map { $0 == "true" }
+            }
         }
+
+        if let title = title, let date = date {
+            let body = allLines[(lastIdx+1)...].joined(separator: "\n")
+            return (frontMatter: PostFrontMatter(title: title, date: date, draft: draft ?? false), body: body)
+        }
+
         throw AppError.incompletePostFrontMatter
     }
 }
@@ -95,7 +106,7 @@ final class GeneratePostPage {
             fileNameComps.append(name)
         }
         let fileName = fileNameComps.joined(separator: "-")
-        let data = PostFrontMatter(title: config.name ?? "Post title", date: Date())
+        let data = PostFrontMatter(title: config.name ?? "Post title", date: Date(), draft: true)
             .text
             .data(using: .utf8)
         if !FileManager.default.fileExists(atPath: config.postURL.path) {
