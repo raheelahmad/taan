@@ -62,7 +62,7 @@ struct PostFrontMatter: Codable {
 
     static func readFrontMatter(fileContent: String) throws -> (frontMatter: PostFrontMatter, body: String) {
         let separator = "---"
-        let allLines = fileContent.split(separator: "\n")
+        let allLines = fileContent.split(separator: "\n", omittingEmptySubsequences: false)
         var separatorsEncountered = 0
         var title: String?
         var date: Date?
