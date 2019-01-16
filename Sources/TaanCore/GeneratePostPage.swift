@@ -90,7 +90,7 @@ struct PostFrontMatter: Codable {
         }
 
         if let title = title, let date = date {
-            let body = allLines[(lastIdx+1)...].joined(separator: "\n")
+            let body = allLines[(lastIdx)...].joined(separator: "\n")
             return (frontMatter: PostFrontMatter(title: title, date: date, draft: draft ?? false), body: body)
         }
 
