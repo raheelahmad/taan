@@ -99,14 +99,9 @@ public class Renderer {
     }
 
     public func pageNames() throws -> [String] {
-        var allNames = try pagePaths()
+        let paths = try pagePaths()
             .map { $0.deletingPathExtension().lastPathComponent }
-            + ["blog"]
-        if let indexIndex = allNames.firstIndex(of: "index") {
-            allNames.remove(at: indexIndex)
-            allNames.insert("index", at: 0)
-        }
-        return allNames
+            return ["index"] + paths + ["blog"]
     }
 
 
@@ -189,7 +184,6 @@ public class Renderer {
             let pages: [Page]
         }
 
-        let indexTemplate = templatePath(named: "blog")
         let posts = try postPaths()
             .compactMap { pageURL -> BlogPageContext? in
                 let pageFileContent = try String(contentsOf: pageURL)
@@ -199,17 +193,22 @@ public class Renderer {
                 }
                 let pageFileName = pageURL.htmlFileName
                 return BlogPageContext(title: frontMatter.title, path: "/blog/\(pageFileName)", date: frontMatter.dateString)
-            }
+            }.sorted(by: { (page1, page2) -> Bool in
+                return page1.date < page2.date
+            })
 
         let blogTitle = config.siteSettings.blogTitle
         let pages = try pageNames().map { Page(name: $0)}
         let context = BlogContext(title: blogTitle, posts: posts, pages: pages)
-        let renderResult = try templateRenderer
-            .render(indexTemplate, context)
-            .wait()
-        let htmlPath = outputBlogDir.appending("/index.html")
-        let outputFile = URL(fileURLWithPath: htmlPath, isDirectory: false)
-        try renderResult.data.write(to: outputFile)
+
+        // Render index and blog/index
+        for (tempalteName, path) in ["index": outputDir.appending("/index.html"), "blog": outputBlogDir.appending("/index.html")] {
+            let renderResult = try templateRenderer
+                .render(templatePath(named: tempalteName), context)
+                .wait()
+            let outputFile = URL(fileURLWithPath: path, isDirectory: false)
+            try renderResult.data.write(to: outputFile)
+        }
     }
 }
 
