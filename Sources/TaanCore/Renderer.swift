@@ -101,7 +101,7 @@ public class Renderer {
     public func pageNames() throws -> [String] {
         let paths = try pagePaths()
             .map { $0.deletingPathExtension().lastPathComponent }
-            return ["index"] + paths + ["blog"]
+            return paths + ["blog"]
     }
 
 
