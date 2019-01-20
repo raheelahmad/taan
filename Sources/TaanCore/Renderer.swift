@@ -1,5 +1,3 @@
-import Foundation
-
 import Down
 import Leaf
 
@@ -185,17 +183,21 @@ public class Renderer {
         }
 
         let posts = try postPaths()
-            .compactMap { pageURL -> BlogPageContext? in
+            .compactMap { pageURL -> (url: URL, frontMatter: PostFrontMatter)? in
                 let pageFileContent = try String(contentsOf: pageURL)
                 let (frontMatter, _) = try PostFrontMatter.readFrontMatter(fileContent: pageFileContent)
                 guard !frontMatter.draft else {
                     return nil
                 }
+                return (pageURL, frontMatter)
+            }.sorted { (one, two) -> Bool in
+                return one.frontMatter.date > two.frontMatter.date
+            }.map { frontMatterAndURL -> BlogPageContext in
+                let pageURL = frontMatterAndURL.url
+                let frontMatter = frontMatterAndURL.frontMatter
                 let pageFileName = pageURL.htmlFileName
                 return BlogPageContext(title: frontMatter.title, path: "/blog/\(pageFileName)", date: frontMatter.dateString)
-            }.sorted(by: { (page1, page2) -> Bool in
-                return page1.date < page2.date
-            })
+            }
 
         let blogTitle = config.siteSettings.blogTitle
         let pages = try pageNames().map { Page(name: $0)}
