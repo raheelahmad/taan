@@ -1,3 +1,3 @@
-# mark-swift
+# Taan - A Swift based static site generator
 
-A description of this package.
+See [this](https://sakunlabs.com/blog/making_the_blog) blog post.
