@@ -96,6 +96,13 @@ public class Renderer {
             .filter { $0.pathExtension == "md" }
     }
 
+    public func htmlPagePaths() throws -> [URL] {
+        return try FileManager.default
+            .contentsOfDirectory(atPath: contentDir)
+            .map { URL(fileURLWithPath: contentDir).appendingPathComponent($0) }
+            .filter { $0.pathExtension == "html" }
+    }
+
     public func pageNames() throws -> [String] {
         let paths = try pagePaths()
             .map { $0.deletingPathExtension().lastPathComponent }
@@ -108,6 +115,7 @@ public class Renderer {
         try setup()
         try copyStatic()
         try renderPages()
+        try copyHTMLPages()
         try renderPosts()
         try renderBlogIndex()
         let end = Date()
@@ -150,6 +158,15 @@ public class Renderer {
             let htmlPath = outputBlogDir.appending("/\(pageFileName)")
             let outputFile = URL(fileURLWithPath: htmlPath, isDirectory: false)
             try renderResult.data.write(to: outputFile)
+        }
+    }
+
+    private func copyHTMLPages() throws {
+        for pageURL in try htmlPagePaths() {
+            let name = pageURL.lastPathComponent
+            let outputPath = outputDir + "/" + name
+            let outputURL = URL(fileURLWithPath: outputPath, isDirectory: false)
+            try FileManager.default.copyItem(at: pageURL, to: outputURL)
         }
     }
 
